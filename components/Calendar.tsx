@@ -8,6 +8,7 @@ import {
   EventApi,
   EventInput,
   EventHoveringArg,
+  DateInput, // Explicitly import DateInput for clarity
 } from "@fullcalendar/core";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -26,9 +27,9 @@ const DEFAULT_EVENT_COLOR = "#3b82f6";
 const findConflictingEvents = (
   checkStart: Date,
   checkEnd: Date,
-  allEvents: EventInput[], // Changed to EventInput[]
+  allEvents: EventInput[],
   ignoreEventId: string | null = null
-): EventInput[] => { // Changed return type
+): EventInput[] => {
   const conflicting: EventInput[] = [];
   for (const existingEvent of allEvents) {
     if (existingEvent.id === ignoreEventId) {
@@ -38,9 +39,43 @@ const findConflictingEvents = (
       continue;
     }
 
-    // Ensure start/end are Date objects for comparison
-    const existingStart = new Date(existingEvent.start);
-    const existingEnd = new Date(existingEvent.end);
+    let existingStart: Date;
+    let existingEnd: Date;
+
+    // Convert existingEvent.start to a Date object
+    const startInput = existingEvent.start; // Type is DateInput
+    if (Array.isArray(startInput)) {
+      // If startInput is [year, monthIndex, day?, hours?, minutes?, seconds?, ms?]
+      // The Date constructor handles undefined for optional parameters correctly.
+      existingStart = new Date(
+        startInput[0],       // year
+        startInput[1],       // monthIndex (0-11)
+        startInput[2],       // day (optional)
+        startInput[3],       // hours (optional)
+        startInput[4],       // minutes (optional)
+        startInput[5],       // seconds (optional)
+        startInput[6]        // milliseconds (optional)
+      );
+    } else {
+      // If it's Date, string, or number, new Date() handles it.
+      existingStart = new Date(startInput as string | number | Date);
+    }
+
+    // Convert existingEvent.end to a Date object
+    const endInput = existingEvent.end; // Type is DateInput
+    if (Array.isArray(endInput)) {
+      existingEnd = new Date(
+        endInput[0],
+        endInput[1],
+        endInput[2],
+        endInput[3],
+        endInput[4],
+        endInput[5],
+        endInput[6]
+      );
+    } else {
+      existingEnd = new Date(endInput as string | number | Date);
+    }
 
     if (checkStart < existingEnd && checkEnd > existingStart) {
       conflicting.push(existingEvent);
@@ -55,7 +90,7 @@ const Calendar: React.FC = () => {
   const [availableColors, setAvailableColors] = useState<Set<string>>(new Set());
   const [activeColorFilters, setActiveColorFilters] = useState<Set<string>>(new Set());
   const [eventsToDisplayInCalendar, setEventsToDisplayInCalendar] = useState<EventInput[]>([]);
-  
+
   const [currentEvents, setCurrentEvents] = useState<EventApi[]>([]); // For sidebar, from eventsSet
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
@@ -212,19 +247,19 @@ const Calendar: React.FC = () => {
       alert("Please enter an event title.");
       return;
     }
-    
+
     // Calendar API for unselect, not strictly needed for master list update
-    calendarRef.current?.getApi().unselect(); 
+    calendarRef.current?.getApi().unselect();
 
     let eventBaseDate: Date;
     if (isEditMode && editingEvent && editingEvent.start) {
-        eventBaseDate = new Date(editingEvent.start); 
+        eventBaseDate = new Date(editingEvent.start);
     } else if (selectedDateInfo) {
         eventBaseDate = new Date(selectedDateInfo.start);
     } else {
         console.error("Cannot determine base date for event."); return;
     }
-    
+
     const formDatePart = new Date(eventBaseDate); formDatePart.setHours(0,0,0,0);
     const finalStartDate = new Date(formDatePart);
     const [startH, startM] = newEventStartTime.split(":").map(Number);
@@ -235,7 +270,7 @@ const Calendar: React.FC = () => {
     finalEndDate.setHours(endH, endM);
 
     if (finalEndDate <= finalStartDate) {
-        finalEndDate.setDate(finalEndDate.getDate() + 1); 
+        finalEndDate.setDate(finalEndDate.getDate() + 1);
     }
 
     // CONFLICT DETECTION against allEventsMasterList
@@ -311,11 +346,11 @@ const Calendar: React.FC = () => {
         }
         return ev;
       }));
-      
+
     } else if (selectedDateInfo) { // Adding new event
       const eventsToAdd: EventInput[] = [];
       const uniqueGroupId = recurrence !== "none" ? crypto.randomUUID() : undefined;
-      
+
       const recurrenceSeriesStartDate = new Date(selectedDateInfo.start);
       recurrenceSeriesStartDate.setHours(startH, startM, 0, 0);
       const recurrenceSeriesEndDate = new Date(selectedDateInfo.start);
@@ -339,10 +374,10 @@ const Calendar: React.FC = () => {
           loopEventStartDate.setFullYear(recurrenceSeriesStartDate.getFullYear());
           loopEventStartDate.setMonth(targetMonth, initialDayOfMonth);
           if (loopEventStartDate.getMonth() !== (targetMonth % 12)) {
-            loopEventStartDate.setMonth(targetMonth + 1, 1); loopEventStartDate.setDate(0); 
+            loopEventStartDate.setMonth(targetMonth + 1, 1); loopEventStartDate.setDate(0);
           }
         } else if (i > 0) break;
-        
+
         const loopEventEndDate = new Date(loopEventStartDate.getTime() + eventDurationMs);
         eventsToAdd.push({
           id: crypto.randomUUID(),
@@ -389,7 +424,7 @@ const Calendar: React.FC = () => {
     }
   };
   const handleEventMouseLeave = () => setIsTooltipVisible(false);
-  
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <div className="p-4 flex justify-end">
@@ -444,7 +479,7 @@ const Calendar: React.FC = () => {
               <li
                 className="border border-gray-200 dark:border-gray-700 shadow px-4 py-2 rounded-md bg-white dark:bg-slate-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 key={event.id + (event.start?.toISOString() || '')} // Add start to key for recurring instances
-                onClick={() => handleEventClick({ event } as EventClickArg)} 
+                onClick={() => handleEventClick({ event } as EventClickArg)}
               >
                 <div className="flex items-center">
                   <span
@@ -455,7 +490,7 @@ const Calendar: React.FC = () => {
                     <span className="font-semibold text-blue-700 dark:text-blue-400">{event.title}</span>
                     <br />
                     <label className="text-slate-800 dark:text-slate-300 text-sm">
-                      {formatDate(event.start!, { 
+                      {formatDate(event.start!, {
                         year: "numeric", month: "short", day: "numeric",
                         hour: "numeric", minute: "2-digit",
                       })}
@@ -491,7 +526,25 @@ const Calendar: React.FC = () => {
         </div>
       </div>
 
-      {isTooltipVisible && tooltipContent}
+      {isTooltipVisible && tooltipContent && (
+        <div
+          style={{
+            position: 'fixed',
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            color: 'white',
+            padding: '5px 10px',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            zIndex: 1000, // Ensure tooltip is on top
+            pointerEvents: 'none', // Prevent tooltip from interfering with mouse events
+            whiteSpace: 'pre-wrap', // Preserve line breaks in description
+          }}
+        >
+          {tooltipContent}
+        </div>
+      )}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}> {/* Dialog JSX largely unchanged, check for any missed details */}
         <DialogContent className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border dark:border-slate-700">
           <DialogHeader>
