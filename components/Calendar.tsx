@@ -20,9 +20,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"; // Ensure this path is correct
-
 const recurrenceOptions = ["none", "daily", "weekly", "monthly"];
 const DEFAULT_EVENT_COLOR = "#3b82f6";
+
+// Define EventData interface to match the db.ts EventData
+interface EventData {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  backgroundColor: string;
+  borderColor: string;
+  extendedProps: {
+    description?: string;
+    groupId?: string;
+  };
+}
 
 const findConflictingEvents = (
   checkStart: Date,
@@ -133,37 +147,31 @@ const Calendar: React.FC = () => {
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
-  // 1. Load from localStorage and initialize allEventsMasterList
+  // Load events from the API on component mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedEventsString = localStorage.getItem("events");
-      if (savedEventsString) {
-        try {
-          const parsedEvents: EventInput[] = JSON.parse(savedEventsString);
-          const eventsWithDefaults = parsedEvents.map(event => ({
-            ...event,
-            id: event.id || crypto.randomUUID(), // Ensure ID
-            backgroundColor: event.backgroundColor || DEFAULT_EVENT_COLOR,
-            borderColor: event.backgroundColor || DEFAULT_EVENT_COLOR, // Match border
-          }));
-          setAllEventsMasterList(eventsWithDefaults);
-        } catch (error) {
-          console.error("Error parsing events from localStorage:", error);
-          setAllEventsMasterList([]);
+    const loadEvents = async () => {
+      try {
+        const response = await fetch('/api/events');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
+        const storedEvents: EventData[] = await response.json();
+        const eventsWithDefaults = storedEvents.map(event => ({
+          ...event,
+          id: event.id || crypto.randomUUID(),
+          backgroundColor: event.backgroundColor || DEFAULT_EVENT_COLOR,
+          borderColor: event.backgroundColor || DEFAULT_EVENT_COLOR,
+        }));
+        setAllEventsMasterList(eventsWithDefaults);
+      } catch (error) {
+        console.error("Error loading events:", error);
+        setAllEventsMasterList([]); // Fallback to empty array on error
       }
-    }
+    };
+    loadEvents();
   }, []);
 
-  // 2. Persist allEventsMasterList to localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (allEventsMasterList.length > 0 || localStorage.getItem("events")) {
-           localStorage.setItem("events", JSON.stringify(allEventsMasterList));
-      }
-    }
-  }, [allEventsMasterList]);
-
+  // 2. Persist allEventsMasterList to database (This useEffect is no longer needed as updates are handled directly by db functions)
   // 3. Derive availableColors from allEventsMasterList
   useEffect(() => {
     const colors = new Set<string>();
@@ -241,7 +249,7 @@ const Calendar: React.FC = () => {
     setOriginalEditEventStart(null); setOriginalEditEventEnd(null);
   };
 
-  const handleAddOrUpdateEvent = (e: React.FormEvent) => {
+  const handleAddOrUpdateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEventTitle) {
       alert("Please enter an event title.");
@@ -316,39 +324,50 @@ const Calendar: React.FC = () => {
         updateAllInSeriesForColor = window.confirm("Update color for all recurring events in this series?");
       }
 
-      setAllEventsMasterList(prevEvents => prevEvents.map(ev => {
-        // Update current instance or single event
-        if (ev.id === eventIdToUpdate) {
-          return {
-            ...ev,
-            title: (groupId && updateAllInSeriesForTitle) ? newEventTitle : (ev.id === eventIdToUpdate ? newEventTitle : ev.title),
-            start: finalStartDate.toISOString(),
-            end: finalEndDate.toISOString(),
-            backgroundColor: (groupId && updateAllInSeriesForColor) ? newEventColor : (ev.id === eventIdToUpdate ? newEventColor : ev.backgroundColor),
-            borderColor: (groupId && updateAllInSeriesForColor) ? newEventColor : (ev.id === eventIdToUpdate ? newEventColor : ev.borderColor),
-            extendedProps: {
-              ...ev.extendedProps,
-              description: (groupId || ev.id === eventIdToUpdate) ? newEventDescription : ev.extendedProps?.description,
-            },
-          };
-        }
-        // Update other instances in the series if confirmed
-        if (groupId && ev.extendedProps?.groupId === groupId) {
-          let updatedSeriesEvent = { ...ev };
-          if (updateAllInSeriesForTitle) updatedSeriesEvent.title = newEventTitle;
-          if (updateAllInSeriesForColor) {
-            updatedSeriesEvent.backgroundColor = newEventColor;
-            updatedSeriesEvent.borderColor = newEventColor;
-          }
-          // Description applies to all in series
-          updatedSeriesEvent.extendedProps = { ...updatedSeriesEvent.extendedProps, description: newEventDescription };
-          return updatedSeriesEvent;
-        }
-        return ev;
-      }));
+      // Update via API
+      if (groupId && (updateAllInSeriesForTitle || updateAllInSeriesForColor || newEventDescription !== oldDescription)) {
+        await fetch('/api/events', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groupId,
+            newEventTitle,
+            newEventColor,
+            newEventDescription,
+            updateAllInSeriesForTitle,
+            updateAllInSeriesForColor,
+            oldDescription, // Pass oldDescription for comparison in API
+          }),
+        });
+      } else {
+        // Update single event via API
+        const updatedEvent: EventData = {
+          id: eventIdToUpdate,
+          title: newEventTitle,
+          start: finalStartDate.toISOString(),
+          end: finalEndDate.toISOString(),
+          allDay: false,
+          backgroundColor: newEventColor,
+          borderColor: newEventColor,
+          extendedProps: {
+            description: newEventDescription,
+            groupId: groupId,
+          },
+        };
+        await fetch('/api/events', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedEvent),
+        });
+      }
+
+      // Re-fetch events to update UI
+      const response = await fetch('/api/events');
+      const updatedEvents: EventData[] = await response.json();
+      setAllEventsMasterList(updatedEvents);
 
     } else if (selectedDateInfo) { // Adding new event
-      const eventsToAdd: EventInput[] = [];
+      const eventsToAdd: EventData[] = [];
       const uniqueGroupId = recurrence !== "none" ? crypto.randomUUID() : undefined;
 
       const recurrenceSeriesStartDate = new Date(selectedDateInfo.start);
@@ -386,16 +405,23 @@ const Calendar: React.FC = () => {
           end: loopEventEndDate.toISOString(),
           allDay: false,
           backgroundColor: newEventColor,
-          borderColor: newEventColor, // Match border color
+          borderColor: newEventColor,
           extendedProps: { description: newEventDescription, groupId: uniqueGroupId },
         });
       }
-      setAllEventsMasterList(prevEvents => [...prevEvents, ...eventsToAdd]);
+      await fetch('/api/events', { // Add events via API
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventsToAdd),
+      });
+      const response = await fetch('/api/events'); // Re-fetch events to update UI
+      const updatedEvents: EventData[] = await response.json();
+      setAllEventsMasterList(updatedEvents);
     }
     handleCloseDialog();
   };
 
-  const handleDeleteEvent = () => {
+  const handleDeleteEvent = async () => {
     if (!editingEvent) return;
     const eventIdToDelete = editingEvent.id;
     const groupId = editingEvent.extendedProps.groupId;
@@ -405,13 +431,28 @@ const Calendar: React.FC = () => {
         "Delete ALL occurrences in this series, or ONLY THIS specific one?\n\n- OK for ALL\n- Cancel for THIS ONE"
       );
       if (confirmDeleteAll) {
-        setAllEventsMasterList(prevEvents => prevEvents.filter(ev => ev.extendedProps?.groupId !== groupId));
+        await fetch('/api/events', { // Delete series via API
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId, deleteAllInSeries: true }),
+        });
       } else {
-        setAllEventsMasterList(prevEvents => prevEvents.filter(ev => ev.id !== eventIdToDelete));
+        await fetch('/api/events', { // Delete single event via API
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: eventIdToDelete }),
+        });
       }
     } else {
-      setAllEventsMasterList(prevEvents => prevEvents.filter(ev => ev.id !== eventIdToDelete));
+      await fetch('/api/events', { // Delete single event via API
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: eventIdToDelete }),
+      });
     }
+    const response = await fetch('/api/events'); // Re-fetch events to update UI
+    const updatedEvents: EventData[] = await response.json();
+    setAllEventsMasterList(updatedEvents);
     handleCloseDialog();
   };
 

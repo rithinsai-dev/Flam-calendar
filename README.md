@@ -1,146 +1,143 @@
-# Interactive Calendar Project
+# Flam Calendar
 
-This project implements a feature-rich interactive calendar using React, Next.js (implied by `"use client";` and `@/` imports), FullCalendar, and Tailwind CSS (implied by class names). It allows users to create, view, edit, delete, and filter events, with support for recurrence, conflict detection, dark mode, and local storage persistence. Dialogs are handled using a component likely from Shadcn/ui.
+Flam Calendar is a feature-rich interactive calendar application built with Next.js, React, FullCalendar, Tailwind CSS, and Shadcn/ui. It allows users to manage their events efficiently with features like event creation, editing, deletion, recurrence, conflict detection, color-coding, filtering, dark mode, and local storage persistence.
 
-## Features
+## Key Features
 
-*   **Event Management:** Create, update, and delete calendar events.
-*   **Recurring Events:** Add daily, weekly, or monthly recurring events (currently for a fixed number of occurrences).
-*   **Conflict Detection:** Warns users if a new or modified event overlaps with existing ones.
-*   **Color Coding & Filtering:** Assign colors to events and filter the calendar view by event color.
-*   **Dark Mode:** Toggle between light and dark themes.
-*   **Local Storage:** Events are saved to the browser's local storage for persistence.
-*   **Event Tooltips:** Display event descriptions on hover.
-*   **Responsive Design:** Styled with Tailwind CSS for adaptability.
+*   **Full-Featured Calendar:** View events by month, week, or day using FullCalendar.
+*   **Event Management:**
+    *   Create new events with title, description, start/end times, and color.
+    *   Edit existing events.
+    *   Delete individual events or entire recurring series.
+*   **Recurring Events:** Add daily, weekly, or monthly recurring events (creates a set number of future instances).
+*   **Conflict Detection:** Get alerted if a new or modified event time conflicts with existing events.
+*   **Color Coding & Filtering:**
+    *   Assign custom colors to events.
+    *   Filter the calendar view and event list by one or more event colors.
+*   **Dark Mode:** Seamlessly switch between light and dark themes. The preference is saved in local storage.
+*   **Local Storage Persistence:** All events are saved in the browser's local storage, so your schedule persists across sessions.
+*   **Event Tooltips:** Hover over an event in the calendar to see its description.
+*   **Responsive UI:** Designed with Tailwind CSS for a great experience on all device sizes.
+*   **Modern Dialogs:** Uses Shadcn/ui for clean and accessible dialogs for event management.
+*   **Event Sidebar:** A list of currently displayed events for quick reference and access.
+
+## Tech Stack
+
+*   **Frontend:** React, Next.js (App Router)
+*   **Calendar:** FullCalendar (@fullcalendar/react, @fullcalendar/daygrid, @fullcalendar/timegrid, @fullcalendar/interaction)
+*   **Styling:** Tailwind CSS
+*   **UI Components:** Shadcn/ui (specifically Dialog)
+*   **Language:** TypeScript
 
 ## Prerequisites
 
 *   Node.js (v18.x or later recommended)
-*   npm, yarn, or pnpm
+*   npm (v9.x or later), yarn, or pnpm
 
-## Project Setup
+## Getting Started
 
-1.  **Place the Code:**
-    *   Save the provided code as `Calendar.tsx` (or `.jsx`) within your Next.js project's components directory (e.g., `src/components/Calendar.tsx` or `app/components/Calendar.tsx`).
-    *   You'll need to integrate this `Calendar` component into a page (e.g., `app/calendar-page/page.tsx`).
+Follow these steps to set up and run the project locally:
 
-2.  **Install Dependencies:**
-    Open your terminal in the project root and run:
-
+1.  **Clone the Repository:**
     ```bash
-    # Using npm
-    npm install @fullcalendar/core @fullcalendar/react @fullcalendar/daygrid @fullcalendar/timegrid @fullcalendar/interaction
-
-    # Or using yarn
-    yarn add @fullcalendar/core @fullcalendar/react @fullcalendar/daygrid @fullcalendar/timegrid @fullcalendar/interaction
-
-    # Or using pnpm
-    pnpm add @fullcalendar/core @fullcalendar/react @fullcalendar/daygrid @fullcalendar/timegrid @fullcalendar/interaction
+    git clone https://github.com/rithinsai-dev/Flam-calendar.git
+    cd Flam-calendar
     ```
 
-3.  **Shadcn/ui Setup (Dialog Component):**
-    The component uses a `Dialog` from `@/components/ui/dialog`. This path suggests Shadcn/ui. If you haven't already set up Shadcn/ui in your project:
+2.  **Install Dependencies:**
+    This project uses npm.
+    ```bash
+    npm install
+    ```
+    *(If you prefer yarn or pnpm, you can use `yarn install` or `pnpm install` respectively, but ensure `package-lock.json` is either deleted or your chosen lock file is prioritized).*
 
-    *   **Initialize Shadcn/ui (if not done already):**
+3.  **Set up Shadcn/ui (if not already configured by the project):**
+    The project relies on Shadcn/ui for dialog components. If the `components/ui` directory is minimal or missing, you might need to initialize Shadcn/ui and add the dialog component.
+    *   **Initialize Shadcn/ui (if needed):**
         ```bash
         npx shadcn-ui@latest init
         ```
-        Follow the prompts. Ensure your `components.json` points to the correct path for UI components (e.g., ` "@/components/ui"`).
-
+        Follow the prompts. This will create `components.json` and set up paths. Ensure your settings align with the project's structure (e.g., using `@/components/ui`).
     *   **Add the Dialog component:**
         ```bash
         npx shadcn-ui@latest add dialog
         ```
         This will add the necessary dialog files to your `components/ui` directory.
 
-4.  **Tailwind CSS Setup:**
-    This project relies heavily on Tailwind CSS for styling. Ensure Tailwind CSS is correctly configured in your Next.js project.
-    *   Make sure your `tailwind.config.js` (or `.ts`) includes the `darkMode: 'class'` strategy to enable dark mode toggling:
-        ```javascript
-        // tailwind.config.js
-        /** @type {import('tailwindcss').Config} */
-        module.exports = {
-          darkMode: "class", // Important for the dark mode toggle
-          content: [
-            "./app/**/*.{js,ts,jsx,tsx,mdx}",
-            "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-            "./components/**/*.{js,ts,jsx,tsx,mdx}",
-            "./src/**/*.{js,ts,jsx,tsx,mdx}", // If using src directory
-          ],
-          theme: {
-            extend: {},
-          },
-          plugins: [],
-        };
-        ```
-    *   Ensure your global CSS file (e.g., `app/globals.css`) includes Tailwind's base directives:
-        ```css
-        @tailwind base;
-        @tailwind components;
-        @tailwind utilities;
-        ```
-
-5.  **Integrate the Calendar Component:**
-    Import and use the `Calendar` component in one of your Next.js pages.
-
-    *Example (`app/my-calendar/page.tsx`):*
-    ```tsx
-    // app/my-calendar/page.tsx
-    import Calendar from '@/components/Calendar'; // Adjust path if necessary
-
-    export default function MyCalendarPage() {
-      return (
-        <div>
-          <h1 className="text-3xl font-bold text-center my-6">My Interactive Calendar</h1>
-          <Calendar />
-        </div>
-      );
-    }
+4.  **Verify Tailwind CSS Configuration:**
+    Ensure your `tailwind.config.js` (or `.ts`) has `darkMode: "class"` enabled:
+    ```javascript
+    // tailwind.config.js or tailwind.config.ts
+    /** @type {import('tailwindcss').Config} */
+    module.exports = {
+      darkMode: "class",
+      // ... other configurations
+    };
+    ```
+    And your global CSS file (e.g., `app/globals.css`) includes Tailwind's base directives:
+    ```css
+    @tailwind base;
+    @tailwind components;
+    @tailwind utilities;
     ```
 
-## Running the Project
+## Running the Application
 
 1.  **Start the Development Server:**
     ```bash
-    # Using npm
     npm run dev
-
-    # Or using yarn
-    yarn dev
-
-    # Or using pnpm
-    pnpm dev
     ```
+    *(Or `yarn dev` / `pnpm dev`)*
 
 2.  **Open in Browser:**
-    Navigate to `http://localhost:3000` (or the port your Next.js app is running on) and go to the page where you've integrated the `Calendar` component (e.g., `http://localhost:3000/my-calendar`).
+    Navigate to `http://localhost:3000` (or the port specified in your terminal) to view the application. The calendar component is likely integrated into a page like `/` or a specific route like `/calendar`.
 
-## Special Instructions
+## Output Screenshots
 
-*   **Dialog Component Path:** The import `import { Dialog, ... } from "@/components/ui/dialog";` assumes your Shadcn/ui components are located at `components/ui` relative to your configured path alias `@`. If your setup differs, adjust this import path accordingly.
+*(Please replace the bracketed text with actual screenshots of your application)*
+
+1.  **Main Calendar View (Light Mode):**
+    Shows the FullCalendar interface with events displayed.
+    `[Image: Main calendar view with some events, light mode, color filters visible on the left]`
+
+2.  **Event Creation/Editing Dialog:**
+    Illustrates the dialog used for adding or modifying an event.
+    `[Image: Dialog open for adding a new event, showing fields for title, description, time, color, and recurrence]`
+
+3.  **Calendar with Filtered Events:**
+    Demonstrates the color filtering feature in action.
+    `[Image: Calendar view showing only events of a specific color after applying a filter, with the selected color filter highlighted]`
+
+4.  **Dark Mode View:**
+    Shows the application in dark mode.
+    `[Image: Main calendar view in dark mode, demonstrating the theme change]`
+
+5.  **Event List Sidebar:**
+    Displays the list of events currently visible in the calendar.
+    `[Image: Sidebar on the left listing current events, with their titles, times, and color indicators]`
+
+6.  **Event Tooltip:**
+    Shows the tooltip appearing when hovering over an event.
+    `[Image: Calendar view with a mouse cursor hovering over an event, and a small tooltip box displaying the event's description]`
+
+## Project Structure Highlights
+
+*   `app/`
+    *   `(pages)/page.tsx` or similar: Likely where the `<Calendar />` component is rendered.
+*   `components/`
+    *   `Calendar.tsx`: The core interactive calendar component.
+    *   `ui/`: Contains Shadcn/ui components (e.g., `dialog.tsx`).
+*   `public/`: For static assets.
+*   `tailwind.config.ts`: Tailwind CSS configuration.
+*   `components.json`: Shadcn/ui configuration.
+
+## Notes
+
 *   **Local Storage:** Event data is stored in the browser's `localStorage` under the key `"events"`. Clearing your browser's local storage for the site will erase all saved events.
-*   **FullCalendar Styling:**
-    *   FullCalendar's core styles are generally included with its packages. If you encounter styling issues, you might need to explicitly import FullCalendar's CSS in your global styles or at the top of your `Calendar.tsx` component (though often not required with module bundlers).
-    *   The component attempts to apply a dark theme to FullCalendar using the `fc-dark-theme` class. You might need to add custom CSS to fully style FullCalendar for dark mode if its default dark mode handling (via Tailwind's `dark` class on `<html>`) isn't sufficient for all elements.
-    ```css
-    /* Example for custom FullCalendar dark theme styling if needed in globals.css */
-    .fc-dark-theme .fc-col-header-cell-cushion,
-    .fc-dark-theme .fc-daygrid-day-number,
-    .fc-dark-theme .fc-list-event-time,
-    .fc-dark-theme .fc-list-event-title {
-        color: #e2e8f0; /* Example: slate-200 */
-    }
+*   **Conflict Detection:** For recurring events, conflict detection currently checks only the *first instance* being created. Subsequent instances might still conflict.
 
-    .fc-dark-theme .fc-daygrid-day {
-        background-color: #1e293b; /* Example: slate-800 for day cells */
-    }
+---
 
-    .fc-dark-theme .fc-toolbar-title {
-        color: #f8fafc; /* Example: slate-50 */
-    }
-    ```
-    *However, the current implementation toggles the `dark` class on the `<html>` element, which Tailwind uses. FullCalendar plugins might automatically adapt if they are well-integrated with Tailwind's dark mode, or they might require specific theme props.*
-
-*   **Conflict Detection Note:** For recurring events, conflict detection currently checks only the *first instance* being created. Subsequent instances might still conflict.
-
-This README should provide a good starting point for setting up and running the calendar component within a Next.js project.
+Remember to replace the `[Image: ...]` placeholders with your actual screenshots! You can embed images in Markdown like this:
+`![Alt text for image](path/to/your/screenshot.png)`
+If your images are in the repository, use relative paths. If they are hosted online, use the full URL.
